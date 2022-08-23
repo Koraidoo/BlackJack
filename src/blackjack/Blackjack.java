@@ -1,13 +1,19 @@
 package blackjack;
 
 import java.util.ArrayList;
+import java.util.InputMismatchException;
+import java.util.Optional;
 import java.util.Scanner;
 
+import blackjack.poker.Card;
+import blackjack.poker.Poker;
+
+/**
+ * Class {@code Blackjack} defines behaviours in a blackjack game. 
+ */
 public class Blackjack {
-    public static final int STAND = 0;
-    public static final int HIT = 1;
-    public static final int SPLIT = 2;
-    public static final int DOUBLE = 3;
+    private static final int QUIT = 0;
+    private static final int ERROR = -1;
 
     private final ArrayList<Card> cards = new ArrayList<>();
     private final ArrayList<Card> dealerCards = new ArrayList<>();
@@ -18,50 +24,102 @@ public class Blackjack {
     public void startGame() {
         Poker poker = new Poker();
         Scanner scanner = new Scanner(System.in);
-
-        while (true) {
+        boolean end = false;
+        while (!end) {
             // deal cards
-            System.out.print("Enter your cards: ");
-            Integer kind = scanner.nextInt();
-
-            if (kind == -1) {
-                break;
+            System.out.print("Enter your first card: ");
+            if (!addCard(poker, cards, scanner)) {
+                end = true;
+                continue;
             }
-            
-            poker.deal(kind);
-            cards.add(new Card(kind));
 
-            kind = scanner.nextInt();
-            poker.deal(kind);
-            cards.add(new Card(kind));
+            System.out.println("Enter your second card: ");
+            if (!addCard(poker, cards, scanner)) {
+                end = true;
+                continue;
+            }
 
             System.out.println("Enter dealer's card: ");
-            kind = scanner.nextInt();
-            poker.deal(kind);
-            dealerCards.add(new Card(kind));
+            if (!addCard(poker, dealerCards, scanner)) {
+                end = true;
+                continue;
+            }
 
             getTotal();
-            
+
             // get result action
-            if (cards.get(0).equals(cards.get(1))) {
-                // two cards are the same, check for split
+            if (Card.isSameNumber(cards.get(0), cards.get(1))) {
+                // two cards have the same value or kind, check for split
                 printResult(isSplit());
+            } else if (hasAce()) {
+                printResult(softTotal());
             } else if (isSurrender()) {
-                System.out.println("You should surrender!");
+                printResult(Action.SURRENDER);
             } else {
-                if (hasAce()) {
-                    printResult(softTotal());
-                } else {
-                    printResult(hardTotal());
-                }
+                printResult(hardTotal());
             }
 
             cards.clear();
             dealerCards.clear();
             poker.newPack();
         }
+    }
 
-        scanner.close();
+    /**
+     * Scan kind input from terminal and adds a card of that kind to
+     * player or dealer's hand.
+     * 
+     * @param poker   the poker deck
+     * @param hand    player or dealer's cards in hand
+     * @param scanner the scanner
+     * @return {@code true} if successfully adds a card to hand,
+     *         {@code false} if signal to quit the game
+     */
+    private boolean addCard(Poker poker, ArrayList<Card> hand, Scanner scanner) {
+        int kind;
+        boolean end = false;
+        while (!end) {
+            kind = scanInputKind(scanner);
+
+            if (kind == ERROR) {
+                continue;
+            } else if (kind == QUIT) {
+                return false;
+            }
+
+            Card card = poker.deal(kind);
+            if (card == null) {
+                continue;
+            }
+
+            hand.add(card);
+            end = true;
+        }
+
+        return true;
+    }
+
+    /**
+     * Scan input from terminal and return as kind of card.
+     * 
+     * @param scanner scanner that scans input from terminal
+     * @return integer input, or {@code ERROR} otherwise
+     */
+    private int scanInputKind(Scanner scanner) {
+        String errMessage = "Please enter integer between 1 and 13 inclusive, or 0 to quit";
+        try {
+            int kind = scanner.nextInt();
+            if (!(kind >= Poker.ACE && kind <= Poker.KING || kind == QUIT)) {
+                System.out.println(errMessage);
+                scanner.nextLine();
+                return ERROR;
+            }
+            return kind;
+        } catch (InputMismatchException err) {
+            System.out.println(errMessage);
+            scanner.nextLine();
+            return ERROR;
+        }
     }
 
     /**
@@ -69,100 +127,72 @@ public class Blackjack {
      * 
      * @param action
      */
-    public void printResult(int action) {
+    private void printResult(Action action) {
         String act = "";
         switch (action) {
             case STAND:
-                act = "stand";
+                act += "stand";
                 break;
             case HIT:
-                act = "hit";
+                act += "hit";
                 break;
             case SPLIT:
-                act = "split";
+                act += "split";
                 break;
             case DOUBLE:
-                act = "double";
+                act += "double";
+                break;
+            case SURRENDER:
+                act += "surrender";
                 break;
             default:
-                act = "======== UNKNOWN ERROR ========";
+                act += "======== UNKNOWN ERROR ========";
 
         }
-        System.out.println("You should " + act + ". ");
+        System.out.println("\n-> You should " + act + ".\n ");
     }
 
     /**
-     * Assume given 2 cards are of the same kind, compute which action to do.
+     * Assume given cards are of the same kind, compute which action to do.
      * 
-     * @return SPLIT, HIT, or STAND
+     * @return {@code SPLIT}, {@code HIT}, or {@code STAND}
      */
-    public int isSplit() {
-        int value = cards.get(0).getValue();
+    private Action isSplit() {
+        int kind = cards.get(0).getKind();
         int dealer = dealerCards.get(0).getValue();
-        switch (value) {
-            case 11:
-                return SPLIT;
+        switch (kind) {
+            case Poker.ACE:
+                return Action.SPLIT;
             case 2:
             case 3:
-                if (dealer >= 2 && dealer <= 7) {
-                    return SPLIT;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 7 ? Action.SPLIT : Action.HIT;
             case 4:
-                if (dealer >= 5 && dealer <= 6) {
-                    return SPLIT;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 5 && dealer <= 6 ? Action.SPLIT : Action.HIT;
             case 5:
-                if (dealer >= 2 && dealer <= 9) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
             case 6:
-                if (dealer >= 2 && dealer <= 6) {
-                    return SPLIT;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 6 ? Action.SPLIT : Action.HIT;
             case 7:
-                if (dealer >= 2 && dealer <= 7) {
-                    return SPLIT;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 7 ? Action.SPLIT : Action.HIT;
             case 8:
-                return SPLIT;
+                return Action.SPLIT;
             case 9:
-                if (dealer == 7 || (dealer >= 10 && dealer <= 11)) {
-                    return STAND;
-                } else {
-                    return SPLIT;
-                }
-            case 10:
+                return dealer == 7 || (dealer >= 10 && dealer <= Poker.ACE_VALUE) ? Action.STAND : Action.SPLIT;
             default:
-                return STAND;
+                return Action.STAND;
         }
 
     }
 
     /**
-     * Check if player should surrender.
-     * 
-     * @return
+     * @return {@code true} if player should surrender, {@code false} otherwise
      */
-    public boolean isSurrender() {
+    private boolean isSurrender() {
         int dealer = dealerCards.get(0).getValue();
         if (getTotal() == 15) {
-            if (dealer == 10) {
-                return true;
-            }
+            return dealer == 10;
         } else if (getTotal() == 16) {
-            if (dealer >= 9 && dealer <= Card.ACE_VALUE) {
-                return true;
-            }
+            return dealer >= 9 && dealer <= Poker.ACE_VALUE;
         }
         return false;
     }
@@ -173,42 +203,28 @@ public class Blackjack {
      * 
      * @return suggested action
      */
-    public int softTotal() {
-        int value = cards.get(0).getValue() == Card.ACE_VALUE ? cards.get(1).getValue() : cards.get(0).getValue();
+    private Action softTotal() {
+        int value = cards.get(0).getValue() == Poker.ACE_VALUE ? cards.get(1).getValue() : cards.get(0).getValue();
         int dealer = dealerCards.get(0).getValue();
         switch (value) {
             case 2:
             case 3:
-                if (dealer >= 5 && dealer <= 6) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 5 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
             case 4:
             case 5:
-                if (dealer >= 4 && dealer <= 6) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 4 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
             case 6:
-                if (dealer >= 3 && dealer <= 6) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 3 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
             case 7:
                 if (dealer >= 3 && dealer <= 6) {
-                    return DOUBLE;
-                } else if (dealer >= 9 && dealer <= Card.ACE_VALUE) {
-                    return HIT;
+                    return Action.DOUBLE;
+                } else if (dealer >= 9 && dealer <= Poker.ACE_VALUE) {
+                    return Action.HIT;
                 } else {
-                    return STAND;
+                    return Action.STAND;
                 }
-            case 8:
-            case 9:
             default:
-                return STAND;
+                return Action.STAND;
 
         }
     }
@@ -219,72 +235,34 @@ public class Blackjack {
      * 
      * @return suggested action
      */
-    public int hardTotal() {
+    private Action hardTotal() {
         int dealer = dealerCards.get(0).getValue();
         int total = getTotal();
         switch (total) {
             case 9:
-                if (dealer >= 3 && dealer <= 6) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 3 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
             case 10:
-                if (dealer >= 2 && dealer <= 9) {
-                    return DOUBLE;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
             case 11:
-                if (dealer == Card.ACE_VALUE) {
-                    return HIT;
-                } else {
-                    return DOUBLE;
-                }
+                return dealer == Poker.ACE_VALUE ? Action.HIT : Action.DOUBLE;
             case 12:
-                if (dealer >= 4 && dealer <= 6) {
-                    return STAND;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 4 && dealer <= 6 ? Action.STAND : Action.HIT;
             case 13:
             case 14:
             case 15:
             case 16:
-                if (dealer >= 2 && dealer <= 6) {
-                    return STAND;
-                } else {
-                    return HIT;
-                }
+                return dealer >= 2 && dealer <= 6 ? Action.STAND : Action.HIT;
             default:
-                if (total <= 8) {
-                    return HIT;
-                } else {
-                    // total >= 17
-                    return STAND;
-                }
+                return total <= 8 ? Action.HIT : Action.STAND; // total >= 17
         }
-    }
-
-    /**
-     * Check if hand is busted.
-     * 
-     * @return true if total > 21
-     */
-    public boolean isBusted() {
-        if (getTotal() > 21) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
      * Calculate hand total using correct value of Ace.
      * 
-     * @return value in hand
+     * @return total value in hand
      */
-    public int getTotal() {
+    private int getTotal() {
         while (true) {
             int sum = sumOfCards();
             if (sum <= 21) {
@@ -300,42 +278,30 @@ public class Blackjack {
     }
 
     /**
-     * Calculate sum of cards.
-     * 
-     * @return
+     * @return sum of cards
      */
     private int sumOfCards() {
-        int sum = 0;
-        for (Card card : cards) {
-            sum += card.getValue();
-        }
-
-        return sum;
+        return cards.stream()
+                .mapToInt(Card::getValue)
+                .sum();
     }
 
     /**
-     * Find if Ace is in hand and has value 11.
-     * 
-     * @return true if Ace has value 11
+     * @return {@code true} if Ace is in hand and has value of 11, {@code false}
+     *         otherwise
      */
     private boolean hasAce() {
-        for (Card card : cards) {
-            if (card.getValue() == Card.ACE_VALUE) {
-                return true;
-            }
-        }
-        return false;
+        return cards.stream()
+                .anyMatch(card -> card.getValue() == Poker.ACE_VALUE);
     }
 
     /**
      * Change the value of Ace from 11 to 1.
      */
     private void changeAce() {
-        for (Card card : cards) {
-            if (card.getValue() == Card.ACE_VALUE) {
-                card.changeAceValue();
-                return;
-            }
-        }
+        Optional<Card> ace = cards.stream()
+                .filter(card -> card.getValue() == Poker.ACE_VALUE)
+                .findFirst();
+        ace.ifPresent(Card::changeAceValue);
     }
 }
