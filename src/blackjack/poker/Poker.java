@@ -55,11 +55,12 @@ public class Poker {
     /**
      * Deal the card of given kind and return this card.
      * 
-     * @param kind
+     * @param kind the kind of card
      * @return {@code Card} of given kind, {@code null} if not found
      */
     public Card deal(int kind) {
-        for (Iterator<Card> iter = poker.iterator(); iter.hasNext();) {
+        Iterator<Card> iter = poker.iterator();
+        while (iter.hasNext()) {
             Card card = iter.next();
             if (card.getKind() == kind) {
                 iter.remove();
