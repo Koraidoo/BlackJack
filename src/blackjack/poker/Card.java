@@ -12,15 +12,15 @@ public class Card {
     /**
      * Constructs a new card
      * 
-     * @param kind
-     * @param suit
+     * @param kind the kind of card
+     * @param suit the suit of card
      */
     public Card(int kind, Suit suit) {
         this.kind = kind;
         this.suit = suit;
         if (kind == Poker.ACE) {
             this.value = Poker.ACE_VALUE;
-        } else if (kind >= 2 && kind <= 10) {
+        } else if (kind > Poker.ACE && kind <= Poker.COURT_CARD_VALUE) {
             this.value = kind;
         } else {
             // if (kind >= 11 && kind <= KING)
@@ -31,8 +31,8 @@ public class Card {
     /**
      * Check if two cards are of the same number.
      * 
-     * @param card1
-     * @param card2
+     * @param card1 the first card
+     * @param card2 the second card
      * @return {@code true} if have same value or kind, {@code false} otherwise
      */
     public static boolean isSameNumber(Card card1, Card card2) {

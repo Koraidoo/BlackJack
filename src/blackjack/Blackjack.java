@@ -9,7 +9,7 @@ import blackjack.poker.Card;
 import blackjack.poker.Poker;
 
 /**
- * Class {@code Blackjack} defines behaviours in a blackjack game. 
+ * Class {@code Blackjack} defines behaviours in a blackjack game.
  */
 public class Blackjack {
     private static final int QUIT = 0;
@@ -24,25 +24,21 @@ public class Blackjack {
     public void startGame() {
         Poker poker = new Poker();
         Scanner scanner = new Scanner(System.in);
-        boolean end = false;
-        while (!end) {
+        while (true) {
             // deal cards
             System.out.print("Enter your first card: ");
             if (!addCard(poker, cards, scanner)) {
-                end = true;
-                continue;
+                return;
             }
 
             System.out.println("Enter your second card: ");
             if (!addCard(poker, cards, scanner)) {
-                end = true;
-                continue;
+                return;
             }
 
             System.out.println("Enter dealer's card: ");
             if (!addCard(poker, dealerCards, scanner)) {
-                end = true;
-                continue;
+                return;
             }
 
             getTotal();
@@ -77,8 +73,7 @@ public class Blackjack {
      */
     private boolean addCard(Poker poker, ArrayList<Card> hand, Scanner scanner) {
         int kind;
-        boolean end = false;
-        while (!end) {
+        while (true) {
             kind = scanInputKind(scanner);
 
             if (kind == ERROR) {
@@ -93,10 +88,8 @@ public class Blackjack {
             }
 
             hand.add(card);
-            end = true;
+            return true;
         }
-
-        return true;
     }
 
     /**
@@ -125,29 +118,17 @@ public class Blackjack {
     /**
      * Prints action in terminal.
      * 
-     * @param action
+     * @param action the action
      */
     private void printResult(Action action) {
         String act = "";
         switch (action) {
-            case STAND:
-                act += "stand";
-                break;
-            case HIT:
-                act += "hit";
-                break;
-            case SPLIT:
-                act += "split";
-                break;
-            case DOUBLE:
-                act += "double";
-                break;
-            case SURRENDER:
-                act += "surrender";
-                break;
-            default:
-                act += "======== UNKNOWN ERROR ========";
-
+            case STAND -> act += "stand";
+            case HIT -> act += "hit";
+            case SPLIT -> act += "split";
+            case DOUBLE -> act += "double";
+            case SURRENDER -> act += "surrender";
+            default -> act += "======== UNKNOWN ERROR ========";
         }
         System.out.println("\n-> You should " + act + ".\n ");
     }
@@ -160,28 +141,15 @@ public class Blackjack {
     private Action isSplit() {
         int kind = cards.get(0).getKind();
         int dealer = dealerCards.get(0).getValue();
-        switch (kind) {
-            case Poker.ACE:
-                return Action.SPLIT;
-            case 2:
-            case 3:
-                return dealer >= 2 && dealer <= 7 ? Action.SPLIT : Action.HIT;
-            case 4:
-                return dealer >= 5 && dealer <= 6 ? Action.SPLIT : Action.HIT;
-            case 5:
-                return dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
-            case 6:
-                return dealer >= 2 && dealer <= 6 ? Action.SPLIT : Action.HIT;
-            case 7:
-                return dealer >= 2 && dealer <= 7 ? Action.SPLIT : Action.HIT;
-            case 8:
-                return Action.SPLIT;
-            case 9:
-                return dealer == 7 || (dealer >= 10 && dealer <= Poker.ACE_VALUE) ? Action.STAND : Action.SPLIT;
-            default:
-                return Action.STAND;
-        }
-
+        return switch (kind) {
+            case Poker.ACE, 8 -> Action.SPLIT;
+            case 2, 3, 7 -> dealer >= 2 && dealer <= 7 ? Action.SPLIT : Action.HIT;
+            case 4 -> dealer >= 5 && dealer <= 6 ? Action.SPLIT : Action.HIT;
+            case 5 -> dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
+            case 6 -> dealer >= 2 && dealer <= 6 ? Action.SPLIT : Action.HIT;
+            case 9 -> dealer == 7 || (dealer >= 10 && dealer <= Poker.ACE_VALUE) ? Action.STAND : Action.SPLIT;
+            default -> Action.STAND;
+        };
     }
 
     /**
@@ -207,11 +175,9 @@ public class Blackjack {
         int value = cards.get(0).getValue() == Poker.ACE_VALUE ? cards.get(1).getValue() : cards.get(0).getValue();
         int dealer = dealerCards.get(0).getValue();
         switch (value) {
-            case 2:
-            case 3:
+            case 2, 3:
                 return dealer >= 5 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
-            case 4:
-            case 5:
+            case 4, 5:
                 return dealer >= 4 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
             case 6:
                 return dealer >= 3 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
@@ -238,23 +204,16 @@ public class Blackjack {
     private Action hardTotal() {
         int dealer = dealerCards.get(0).getValue();
         int total = getTotal();
-        switch (total) {
-            case 9:
-                return dealer >= 3 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
-            case 10:
-                return dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
-            case 11:
-                return dealer == Poker.ACE_VALUE ? Action.HIT : Action.DOUBLE;
-            case 12:
-                return dealer >= 4 && dealer <= 6 ? Action.STAND : Action.HIT;
-            case 13:
-            case 14:
-            case 15:
-            case 16:
-                return dealer >= 2 && dealer <= 6 ? Action.STAND : Action.HIT;
-            default:
-                return total <= 8 ? Action.HIT : Action.STAND; // total >= 17
-        }
+        return switch (total) {
+            case 9 -> dealer >= 3 && dealer <= 6 ? Action.DOUBLE : Action.HIT;
+            case 10 -> dealer >= 2 && dealer <= 9 ? Action.DOUBLE : Action.HIT;
+            case 11 -> dealer == Poker.ACE_VALUE ? Action.HIT : Action.DOUBLE;
+            case 12 -> dealer >= 4 && dealer <= 6 ? Action.STAND : Action.HIT;
+            case 13, 14, 15, 16 -> dealer >= 2 && dealer <= 6 ? Action.STAND : Action.HIT;
+            default ->
+                // otherwise total >= 17
+                total <= 8 ? Action.HIT : Action.STAND;
+        };
     }
 
     /**
@@ -267,12 +226,11 @@ public class Blackjack {
             int sum = sumOfCards();
             if (sum <= 21) {
                 return sum;
+            }
+            if (hasAce()) {
+                changeAce();
             } else {
-                if (hasAce()) {
-                    changeAce();
-                } else {
-                    return sum;
-                }
+                return sum;
             }
         }
     }
